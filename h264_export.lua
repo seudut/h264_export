@@ -23,6 +23,10 @@
 --          Change h264_f.value to h264_f.range:bytes() because of wireshark lua bug.  
 --      2015-06-03  
 --          Fixed bug that if ipv6 address is using the file will not generated.(we replace ':' to '.')  
+--      2017-08-18 
+--          Fixed bug on Mac with Wireshark 2.4.1, that error (Permission denied) happens when writing to file. 
+--          Add check when open file, if failed, trying home directory instead of default directory 
+--          (/Application/Wireshark.app/)
 ------------------------------------------------------------------------------------------------  
 do  
     --local bit = require("bit") -- only work before 1.10.1  
@@ -87,7 +91,17 @@ do
             if not stream_info then -- if not exists, create one  
                 stream_info = { }  
                 stream_info.filename = key.. ".264"  
-                stream_info.file = io.open(stream_info.filename, "wb")  
+                stream_info.file, err= io.open(stream_info.filename, "wb")  
+                if stream_info.file == nil then
+                    twappend("*** Error - Could not open file: " .. err .. "\n")
+                    twappend("Trying the home directory... \n")
+                    stream_info.file, err= io.open( os.getenv("HOME") .. "/" .. stream_info.filename, "wb")  
+                    if stream_info.file == nil then
+                        twappend("*** Error - :" .. err .. " \n")
+                    else
+                        twappend("*** Success - Open file : " .. os.getenv("HOME") .. "/" .. stream_info.filename .. " \n")
+                    end
+                end
                 stream_info.counter = 0 -- counting h264 total NALUs  
                 stream_info.counter2 = 0 -- for second time running  
                 stream_infos[key] = stream_info  
